@@ -1,6 +1,10 @@
 using KpiService;
 using KpiService.KPIs;
 using KpiService.Repository;
+using Microsoft.Extensions.DependencyInjection;
+
+// Detect run-once mode via CLI flag or environment variable
+var runOnce = args.Contains("--run-once") || string.Equals(Environment.GetEnvironmentVariable("RUN_ONCE"), "true", StringComparison.OrdinalIgnoreCase);
 
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
@@ -36,5 +40,15 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddHostedService<Worker>();
     })
     .Build();
+
+if (runOnce)
+{
+    // Resolve KpiRunner from DI and run once
+    using var scope = host.Services.CreateScope();
+    var runner = scope.ServiceProvider.GetRequiredService<KpiRunner>();
+    await runner.RunAsync();
+    // exit immediately after one run
+    return;
+}
 
 await host.RunAsync();
